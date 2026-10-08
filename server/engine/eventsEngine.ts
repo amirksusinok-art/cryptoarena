@@ -19,6 +19,94 @@ export class EventsEngine extends EventEmitter {
 
   public init() {
     console.log('[EventsEngine] Market events engine initialized');
+    this.startBackgroundNewsGenerator();
+  }
+
+  private startBackgroundNewsGenerator() {
+    const newsTemplates = [
+      {
+        symbol: 'BTC/USDT',
+        title: '🐋 Кит переместил 5 240 BTC на холодный кошелек',
+        description: 'On-chain аналитики зафиксировали отток крупной партии Bitcoin с биржевых адресов. Давление продавцов снижается.',
+        type: 'INFO',
+        importance: '🟢 Отток с бирж'
+      },
+      {
+        symbol: 'GLOBAL',
+        title: '🏦 Глава ФРС прокомментировал монетарную политику',
+        description: 'Рынки реагируют на комментарии касательно ключевой ставки. Индекс доллара DXY перешёл в консолидацию.',
+        type: 'VOLATILITY',
+        importance: '🟡 Волатильность +4%'
+      },
+      {
+        symbol: 'ETH/USDT',
+        title: '⚡ Приток институционального капитала в Ethereum',
+        description: 'Чистый суточный приток в спотовые фонды превысил $145 млн. Активность в L2 сетях бьет рекорды месяца.',
+        type: 'INFO',
+        importance: '🟢 Институционалы'
+      },
+      {
+        symbol: 'TON/USDT',
+        title: '🚀 Число активных кошельков TON выросло на 28%',
+        description: 'Новые интеграции мини-приложений в Telegram стимулируют органический спрос на газ в экосистеме.',
+        type: 'PUMP',
+        importance: '🔥 Ончейн-бум'
+      },
+      {
+        symbol: 'DOGE/USDT',
+        title: '🐕 Возобновление активности мем-коинов',
+        description: 'Трейдеры разгоняют открытый интерес по деривативам на Dogecoin. Объемы торгов выросли на 42%.',
+        type: 'VOLATILITY',
+        importance: '⚡ Объем +42%'
+      },
+      {
+        symbol: 'SOL/USDT',
+        title: '💎 Solana DEX зафиксировали рекордный суточный объем',
+        description: 'Децентрализованные протоколы на Solana обогнали ведущие EVM сети по объему торгов за последние 24 часа.',
+        type: 'INFO',
+        importance: '🟢 Рекорд DEX'
+      },
+      {
+        symbol: 'GLOBAL',
+        title: '📉 Каскад ликвидаций шорт-позиций на $85 млн',
+        description: 'Внезапный отскок цены ликвидировал агрессивных медведей на фьючерсных площадках.',
+        type: 'VOLATILITY',
+        importance: '🔴 Ликвидация медведей'
+      }
+    ];
+
+    // Pre-populate if news list is small
+    db.getMarketNews(10).then(existing => {
+      if (existing.length < 5) {
+        for (let i = 0; i < newsTemplates.length; i++) {
+          const t = newsTemplates[i];
+          db.createMarketNews({
+            id: `news_seed_${i}_${Date.now()}`,
+            symbol: t.symbol,
+            title: t.title,
+            description: t.description,
+            type: t.type as any,
+            importance: t.importance as any,
+            created_at: Date.now() - (i * 180000) // Spread over last hour
+          });
+        }
+      }
+    });
+
+    // Auto-generate fresh background event every 75 seconds
+    setInterval(() => {
+      const template = newsTemplates[Math.floor(Math.random() * newsTemplates.length)];
+      const freshNews: MarketNews = {
+        id: `news_bg_${Date.now()}`,
+        symbol: template.symbol,
+        title: template.title,
+        description: template.description,
+        type: template.type as any,
+        importance: template.importance as any,
+        created_at: Date.now()
+      };
+      db.createMarketNews(freshNews);
+    }, 75000);
   }
 
   // --- Pump Event ---

@@ -5,7 +5,11 @@ import { PositionList } from '../trade/PositionList.js';
 import { OrderList } from '../trade/OrderList.js';
 import { formatMoney, formatMoneyWithSign, formatPercent, formatPrice, formatDate } from '../../utils/formatters.js';
 
-export const PortfolioTab: React.FC = () => {
+interface PortfolioTabProps {
+  onNavigateToTrade?: () => void;
+}
+
+export const PortfolioTab: React.FC<PortfolioTabProps> = ({ onNavigateToTrade }) => {
   const { portfolio } = useTrade();
   const [subTab, setSubTab] = useState<'positions' | 'orders' | 'history'>('positions');
 
@@ -17,18 +21,69 @@ export const PortfolioTab: React.FC = () => {
   const realizedPnL = portfolio?.realizedPnL || 0;
   const trades = portfolio?.trades || [];
 
-  const capitalHistory = portfolio?.capitalHistory || [];
+  const rawHistory = portfolio?.capitalHistory || [];
+  // Ensure we have at least 2 points for a nice area curve
+  const capitalHistory = rawHistory.length > 1
+    ? rawHistory
+    : [
+        { id: 'h_start', equity: 10000, timestamp: Date.now() - 3600000 * 4 },
+        { id: 'h_current', equity, timestamp: Date.now() }
+      ];
+
+  const totalRoi = ((equity - 10000) / 10000) * 100;
+  const isOverallProfit = equity >= 10000;
+
+  // Compute SVG Area Chart Points
+  const equities = capitalHistory.map(c => c.equity);
+  const minEq = Math.min(9900, Math.min(...equities)) * 0.995;
+  const maxEq = Math.max(10100, Math.max(...equities)) * 1.005;
+  const range = maxEq - minEq || 1;
+
+  const svgWidth = 320;
+  const svgHeight = 75;
+  const paddingX = 12;
+  const paddingY = 8;
+  const usableWidth = svgWidth - paddingX * 2;
+  const usableHeight = svgHeight - paddingY * 2;
+
+  const points = capitalHistory.map((pt, idx) => {
+    const x = paddingX + (idx / Math.max(1, capitalHistory.length - 1)) * usableWidth;
+    const y = paddingY + usableHeight - ((pt.equity - minEq) / range) * usableHeight;
+    return { x, y, equity: pt.equity, time: pt.timestamp };
+  });
+
+  // Build SVG path
+  const linePath = points.reduce((acc, p, i) => {
+    if (i === 0) return `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+    const prev = points[i - 1];
+    const cx = ((prev.x + p.x) / 2).toFixed(1);
+    return `${acc} C ${cx} ${prev.y.toFixed(1)}, ${cx} ${p.y.toFixed(1)}, ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+  }, '');
+
+  const firstPt = points[0];
+  const lastPt = points[points.length - 1];
+  const areaPath = `${linePath} L ${lastPt.x.toFixed(1)} ${svgHeight} L ${firstPt.x.toFixed(1)} ${svgHeight} Z`;
+
+  const strokeColor = isOverallProfit ? '#10b981' : '#f43f5e';
+  const gradId = `equityGrad_${isOverallProfit ? 'profit' : 'loss'}`;
 
   return (
     <div className="p-3.5 space-y-4 pb-20 select-none">
       {/* Portfolio Overview Card */}
       <div className="bg-gradient-to-br from-dark-card to-dark-surface border border-dark-border rounded-2xl p-4 shadow-xl space-y-3">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Общий Капитал (Total Equity)
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              Общий Капитал (Total Equity)
+            </div>
+            <div className="text-2xl font-mono font-black text-white mt-0.5">
+              {formatMoney(equity)}
+            </div>
           </div>
-          <div className="text-2xl font-mono font-black text-white mt-0.5">
-            {formatMoney(equity)}
+          <div className={`px-2 py-1 rounded-lg text-xs font-mono font-bold flex items-center space-x-1 ${
+            isOverallProfit ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+          }`}>
+            <span>{isOverallProfit ? '+' : ''}{totalRoi.toFixed(2)}%</span>
           </div>
         </div>
 
@@ -63,36 +118,57 @@ export const PortfolioTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Capital History Curve Visualizer (Section 25) */}
-      {capitalHistory.length > 1 && (
-        <div className="bg-dark-card border border-dark-border rounded-xl p-3 space-y-2">
-          <div className="flex items-center space-x-1.5 text-xs font-bold text-white">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-            <span>История изменения капитала</span>
+      {/* Sleek SVG Equity Curve Area Chart */}
+      <div className="bg-dark-card border border-dark-border rounded-2xl p-3.5 space-y-2.5">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center space-x-1.5 font-bold text-white">
+            <TrendingUp className={`w-4 h-4 ${isOverallProfit ? 'text-emerald-400' : 'text-rose-400'}`} />
+            <span>Кривая доходности</span>
           </div>
-          <div className="h-16 flex items-end space-x-1 bg-dark-surface/40 p-2 rounded-lg overflow-x-auto">
-            {capitalHistory.slice(-25).map((pt, i) => {
-              const minEq = Math.min(...capitalHistory.map(c => c.equity)) * 0.98;
-              const maxEq = Math.max(...capitalHistory.map(c => c.equity)) * 1.02;
-              const range = maxEq - minEq || 1;
-              const heightPct = Math.max(10, Math.min(100, Math.round(((pt.equity - minEq) / range) * 100)));
-              const isProfit = pt.equity >= 10000;
-
-              return (
-                <div
-                  key={pt.id || i}
-                  title={`${formatMoney(pt.equity)} (${formatDate(pt.timestamp)})`}
-                  className="flex-1 min-w-[6px] rounded-t transition-all hover:opacity-100 opacity-80"
-                  style={{
-                    height: `${heightPct}%`,
-                    backgroundColor: isProfit ? '#22c55e' : '#ef4444'
-                  }}
-                />
-              );
-            })}
+          <div className="text-[11px] font-mono text-slate-400">
+            Старт: <span className="text-slate-200 font-semibold">$10 000</span>
           </div>
         </div>
-      )}
+
+        {/* SVG Graphic */}
+        <div className="relative w-full overflow-hidden bg-dark-surface/40 rounded-xl pt-2">
+          <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-24 overflow-visible">
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={strokeColor} stopOpacity="0.38" />
+                <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+
+            {/* Subtle horizontal grid lines */}
+            <line x1={paddingX} y1={paddingY} x2={svgWidth - paddingX} y2={paddingY} stroke="#1e2433" strokeDasharray="3 3" />
+            <line x1={paddingX} y1={svgHeight / 2} x2={svgWidth - paddingX} y2={svgHeight / 2} stroke="#1e2433" strokeDasharray="3 3" />
+            <line x1={paddingX} y1={svgHeight - paddingY} x2={svgWidth - paddingX} y2={svgHeight - paddingY} stroke="#1e2433" strokeDasharray="3 3" />
+
+            {/* Gradient Area */}
+            <path d={areaPath} fill={`url(#${gradId})`} />
+
+            {/* Curve Line */}
+            <path d={linePath} fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" />
+
+            {/* Pulse Dot at Current Equity */}
+            {lastPt && (
+              <>
+                <circle cx={lastPt.x} cy={lastPt.y} r="5" fill={strokeColor} opacity="0.3" className="animate-ping" />
+                <circle cx={lastPt.x} cy={lastPt.y} r="3.5" fill={strokeColor} />
+              </>
+            )}
+          </svg>
+
+          <div className="flex justify-between items-center px-2.5 pb-2 text-[10px] font-mono text-slate-400 border-t border-dark-border/40 pt-1.5 mt-1">
+            <span>Мин: {formatMoney(minEq)}</span>
+            <span className={`font-bold ${isOverallProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+              Текущий: {formatMoney(equity)}
+            </span>
+            <span>Макс: {formatMoney(maxEq)}</span>
+          </div>
+        </div>
+      </div>
 
       {/* Sub Tabs: Positions, Orders, History */}
       <div className="flex space-x-1 bg-dark-card p-1 rounded-xl border border-dark-border text-xs">
@@ -136,7 +212,7 @@ export const PortfolioTab: React.FC = () => {
       </div>
 
       {/* Sub Tab Contents */}
-      {subTab === 'positions' && <PositionList />}
+      {subTab === 'positions' && <PositionList onNavigateToTrade={onNavigateToTrade} />}
       {subTab === 'orders' && <OrderList />}
       {subTab === 'history' && (
         <div className="space-y-2">

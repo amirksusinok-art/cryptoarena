@@ -110,28 +110,47 @@ export class PriceEngine extends EventEmitter {
 
     for (const tf of timeframes) {
       const step = TIMEFRAME_SECONDS[tf];
-      const count = 120; // 120 historical candles
+      const count = 100;
       const list: Candle[] = [];
-      let currentPrice = basePrice * (1 + (Math.random() - 0.5) * 0.05);
+      const decimals = this.getDecimals(symbol);
+
+      // Start from a price slightly displaced from basePrice, then trend with wave oscillation
+      let currentPrice = basePrice * (1 + (Math.sin(step) * 0.015));
 
       for (let i = count; i >= 1; i--) {
         const cTime = Math.floor((nowSec - i * step) / step) * step;
-        const volatility = tf === '1m' ? 0.0015 : tf === '1d' ? 0.025 : 0.006;
-        const delta = (Math.random() - 0.495) * volatility * currentPrice;
+
+        // Wave trend + random component
+        const wave = Math.sin(i * 0.15) * 0.003;
+        const randomNoise = (Math.random() - 0.495) * (tf === '1m' ? 0.0025 : tf === '1d' ? 0.03 : 0.008);
+        const changePct = wave + randomNoise;
+
         const open = currentPrice;
-        const close = Math.max(0.0001, currentPrice + delta);
-        const high = Math.max(open, close) + Math.random() * Math.abs(delta) * 0.8;
-        const low = Math.max(0.0001, Math.min(open, close) - Math.random() * Math.abs(delta) * 0.8);
-        const volume = (currentPrice * (5 + Math.random() * 15)) / (step / 60);
+        let close = Math.max(0.0001, currentPrice * (1 + changePct));
+
+        // Ensure body is visible (at least 0.08% diff)
+        if (Math.abs(close - open) < open * 0.0005) {
+          close = open * (1 + (Math.random() > 0.5 ? 0.0008 : -0.0008));
+        }
+
+        const bodyHigh = Math.max(open, close);
+        const bodyLow = Math.min(open, close);
+
+        // Proportional wicks
+        const wickHigh = bodyHigh + (bodyHigh - bodyLow) * (0.3 + Math.random() * 0.8) + open * 0.0004;
+        const wickLow = Math.max(0.0001, bodyLow - (bodyHigh - bodyLow) * (0.3 + Math.random() * 0.8) - open * 0.0004);
+
+        const volume = (currentPrice * (15 + Math.random() * 45)) / Math.max(1, step / 60);
 
         list.push({
           time: cTime,
-          open: Number(open.toFixed(this.getDecimals(symbol))),
-          high: Number(high.toFixed(this.getDecimals(symbol))),
-          low: Number(low.toFixed(this.getDecimals(symbol))),
-          close: Number(close.toFixed(this.getDecimals(symbol))),
+          open: Number(open.toFixed(decimals)),
+          high: Number(wickHigh.toFixed(decimals)),
+          low: Number(wickLow.toFixed(decimals)),
+          close: Number(close.toFixed(decimals)),
           volume: Number(volume.toFixed(2))
         });
+
         currentPrice = close;
       }
 
@@ -147,12 +166,15 @@ export class PriceEngine extends EventEmitter {
       const ticker = this.tickers.get(symbol);
       if (ticker) {
         ticker.price = last.close;
+        const halfSpread = (ticker.spread * ticker.price) / 2;
+        ticker.bid = Number((ticker.price - halfSpread).toFixed(this.getDecimals(symbol)));
+        ticker.ask = Number((ticker.price + halfSpread).toFixed(this.getDecimals(symbol)));
         ticker.open24h = dayCandles[0].open;
         ticker.high24h = Math.max(...dayCandles.map(c => c.high));
         ticker.low24h = Math.min(...dayCandles.map(c => c.low));
         ticker.change24h = ticker.price - ticker.open24h;
         ticker.change24hPercent = Number(((ticker.change24h / ticker.open24h) * 100).toFixed(2));
-        ticker.historyMini = dayCandles.slice(-20).map(c => c.close);
+        ticker.historyMini = dayCandles.slice(-24).map(c => c.close);
       }
     }
   }

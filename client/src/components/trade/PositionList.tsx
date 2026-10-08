@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { AlertTriangle, Edit3, X } from 'lucide-react';
+import { AlertTriangle, Edit3, X, TrendingUp, Compass } from 'lucide-react';
 import { useTrade } from '../../context/TradeContext.js';
 import { Position } from '../../types/index.js';
 import { formatPrice, formatMoney, formatMoneyWithSign, formatPercent } from '../../utils/formatters.js';
 
-export const PositionList: React.FC = () => {
+interface PositionListProps {
+  onNavigateToTrade?: () => void;
+}
+
+export const PositionList: React.FC<PositionListProps> = ({ onNavigateToTrade }) => {
   const { portfolio, closePosition, updateSLTP } = useTrade();
   const [editingPos, setEditingPos] = useState<Position | null>(null);
   const [editSL, setEditSL] = useState<string>('');
@@ -14,8 +18,25 @@ export const PositionList: React.FC = () => {
 
   if (positions.length === 0) {
     return (
-      <div className="py-8 text-center text-slate-500 text-xs">
-        Нет открытых позиций
+      <div className="py-8 px-4 text-center space-y-3 bg-dark-surface/40 border border-dashed border-dark-border/80 rounded-2xl m-3">
+        <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+          <TrendingUp className="w-6 h-6" />
+        </div>
+        <div>
+          <div className="text-white font-bold text-sm">Нет открытых позиций</div>
+          <div className="text-slate-400 text-xs mt-1 max-w-xs mx-auto">
+            Изучите рынок и откройте свою первую позицию Long или Short с плечом!
+          </div>
+        </div>
+        {onNavigateToTrade && (
+          <button
+            onClick={onNavigateToTrade}
+            className="inline-flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+          >
+            <Compass className="w-4 h-4" />
+            <span>🚀 Открыть первую сделку</span>
+          </button>
+        )}
       </div>
     );
   }

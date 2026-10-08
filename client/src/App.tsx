@@ -5,7 +5,6 @@ import { BottomNavigation, TabType } from './components/layout/BottomNavigation.
 
 import { ChartTerminal } from './components/trade/ChartTerminal.js';
 import { FullscreenChart } from './components/trade/FullscreenChart.js';
-import { OrderBook } from './components/trade/OrderBook.js';
 import { TradeForm } from './components/trade/TradeForm.js';
 import { PositionList } from './components/trade/PositionList.js';
 import { OrderList } from './components/trade/OrderList.js';
@@ -40,18 +39,15 @@ export const App: React.FC = () => {
       <VirtualMarketBanner />
 
       {/* 2. Top Header */}
-      <Header onOpenAdmin={() => setAdminModalOpen(true)} />
+      <Header onOpenAdmin={() => setAdminModalOpen(true)} activeTab={activeTab} />
 
       {/* 3. Main Content Router */}
       <main className="flex-1 overflow-y-auto">
         {/* TAB 1: TRADE TERMINAL */}
         {activeTab === 'trade' && (
           <div className="flex flex-col">
-            {/* Interactive Chart */}
+            {/* Interactive Chart & Sub-tabs (Chart, Orderbook, Info) */}
             <ChartTerminal onOpenFullscreen={() => setFullscreenOpen(true)} />
-
-            {/* Synthetic Order Book */}
-            <OrderBook />
 
             {/* Trading Form */}
             <TradeForm />
@@ -105,7 +101,7 @@ export const App: React.FC = () => {
         {activeTab === 'news' && <NewsTab />}
 
         {/* TAB 4: PORTFOLIO */}
-        {activeTab === 'portfolio' && <PortfolioTab />}
+        {activeTab === 'portfolio' && <PortfolioTab onNavigateToTrade={() => setActiveTab('trade')} />}
 
         {/* TAB 5: PROFILE & BATTLES */}
         {activeTab === 'profile' && <ProfileTab />}

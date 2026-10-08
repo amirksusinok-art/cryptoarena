@@ -4,12 +4,14 @@ import { useMarket } from '../../context/MarketContext.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { useTrade } from '../../context/TradeContext.js';
 import { formatPrice, formatPercent, formatMoney } from '../../utils/formatters.js';
+import { TabType } from './BottomNavigation.js';
 
 interface HeaderProps {
   onOpenAdmin: () => void;
+  activeTab: TabType;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenAdmin }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenAdmin, activeTab }) => {
   const { activeSymbol, setActiveSymbol, tickers, currentTicker, favorites, toggleFavorite, isConnected } = useMarket();
   const { user, isDevMock, switchDevUser } = useAuth();
   const { portfolio, activeBattleId, setActiveBattleId } = useTrade();
@@ -20,60 +22,76 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdmin }) => {
   const isFav = favorites.includes(activeSymbol);
   const isUp = (currentTicker?.change24hPercent || 0) >= 0;
 
+  const showPairSelector = activeTab === 'trade' || activeTab === 'markets';
+
+  const tabTitles: Record<TabType, string> = {
+    trade: activeSymbol,
+    markets: 'Рынки',
+    news: 'Новости & События',
+    portfolio: 'Портфель',
+    profile: 'Профиль & Топ'
+  };
+
   return (
     <header className="bg-dark-card border-b border-dark-border px-3.5 py-2.5 flex items-center justify-between relative z-30 select-none">
-      {/* Pair Selector Dropdown */}
-      <div className="relative">
-        <button
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center space-x-2 bg-dark-surface hover:bg-dark-border/60 transition-colors px-2.5 py-1.5 rounded-lg border border-dark-border/80"
-        >
-          <span className="font-bold text-sm tracking-wide text-white">{activeSymbol}</span>
-          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-        </button>
+      {/* Left: Pair Selector (on Trade/Markets) or Screen Title (on other tabs) */}
+      {showPairSelector ? (
+        <div className="relative">
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="flex items-center space-x-1.5 bg-dark-surface hover:bg-dark-border/60 transition-colors px-2.5 py-1.5 rounded-lg border border-dark-border/80"
+          >
+            <span className="font-bold text-sm tracking-wide text-white">{activeSymbol}</span>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
 
-        {dropdownOpen && (
-          <div className="absolute top-full left-0 mt-1.5 w-64 bg-dark-card border border-dark-border rounded-xl shadow-2xl py-1.5 z-50 backdrop-blur-md">
-            <div className="px-3 py-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-dark-border/50">
-              Торговые пары
-            </div>
-            <div className="max-h-60 overflow-y-auto">
-              {tickers.map(t => {
-                const up = t.change24hPercent >= 0;
-                return (
-                  <button
-                    key={t.symbol}
-                    onClick={() => {
-                      setActiveSymbol(t.symbol);
-                      setDropdownOpen(false);
-                    }}
-                    className={`w-full px-3 py-2 flex items-center justify-between text-left hover:bg-dark-surface/80 transition-colors ${
-                      t.symbol === activeSymbol ? 'bg-dark-surface border-l-2 border-emerald-500' : ''
-                    }`}
-                  >
-                    <div>
-                      <div className="font-semibold text-xs text-white">{t.symbol}</div>
-                      <div className="text-[10px] text-slate-400">{t.name}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs font-mono text-slate-200">{formatPrice(t.price, t.symbol)}</div>
-                      <div className={`text-[10px] font-mono font-medium ${up ? 'text-trade-up' : 'text-trade-down'}`}>
-                        {formatPercent(t.change24hPercent)}
+          {dropdownOpen && (
+            <div className="absolute top-full left-0 mt-1.5 w-64 bg-dark-card border border-dark-border rounded-xl shadow-2xl py-1.5 z-50 backdrop-blur-md">
+              <div className="px-3 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-dark-border/50">
+                Выберите пару
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {tickers.map(t => {
+                  const up = t.change24hPercent >= 0;
+                  return (
+                    <button
+                      key={t.symbol}
+                      onClick={() => {
+                        setActiveSymbol(t.symbol);
+                        setDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 flex items-center justify-between text-left hover:bg-dark-surface/80 transition-colors ${
+                        t.symbol === activeSymbol ? 'bg-dark-surface border-l-2 border-emerald-500' : ''
+                      }`}
+                    >
+                      <div>
+                        <div className="font-semibold text-xs text-white">{t.symbol}</div>
+                        <div className="text-[10px] text-slate-400">{t.name}</div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })}
+                      <div className="text-right">
+                        <div className="text-xs font-mono text-slate-200">{formatPrice(t.price, t.symbol)}</div>
+                        <div className={`text-[10px] font-mono font-medium ${up ? 'text-trade-up' : 'text-trade-down'}`}>
+                          {formatPercent(t.change24hPercent)}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center space-x-2">
+          <span className="font-bold text-sm text-white tracking-wide">{tabTitles[activeTab]}</span>
+        </div>
+      )}
 
-      {/* Active Battle Indicator or Price Badge */}
+      {/* Center: Live Price (only if Trade/Markets) or Battle Badge */}
       {activeBattleId ? (
-        <div className="flex items-center space-x-2 bg-purple-500/20 border border-purple-500/40 px-2.5 py-1 rounded-full">
-          <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-          <span className="text-xs font-semibold text-purple-200 uppercase tracking-wide">BATTLE MODE</span>
+        <div className="flex items-center space-x-1.5 bg-purple-500/20 border border-purple-500/40 px-2.5 py-0.5 rounded-full">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+          <span className="text-[11px] font-semibold text-purple-200">BATTLE</span>
           <button
             onClick={() => setActiveBattleId(null)}
             className="text-[10px] text-purple-300 hover:text-white underline ml-1"
@@ -81,15 +99,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdmin }) => {
             Выйти
           </button>
         </div>
-      ) : (
-        <div className="flex items-center space-x-2">
+      ) : showPairSelector ? (
+        <div className="flex items-center space-x-1.5">
           <button
             onClick={() => toggleFavorite(activeSymbol)}
-            className={`p-1.5 rounded-lg transition-colors ${
+            className={`p-1 rounded-lg transition-colors ${
               isFav ? 'text-amber-400 bg-amber-400/10' : 'text-slate-500 hover:text-slate-300'
             }`}
           >
-            <Star className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
+            <Star className={`w-3.5 h-3.5 ${isFav ? 'fill-current' : ''}`} />
           </button>
           <div className="text-right">
             <div className="text-xs font-mono font-bold text-white">
@@ -100,12 +118,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdmin }) => {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Equity & Settings / Admin Buttons */}
-      <div className="flex items-center space-x-2">
-        <div className="bg-dark-surface/90 border border-dark-border/80 px-2.5 py-1 rounded-lg text-right">
-          <div className="text-[9px] uppercase tracking-wider text-slate-400 font-medium">Капитал</div>
+      {/* Right: Equity & Controls */}
+      <div className="flex items-center space-x-1.5">
+        <div className="bg-dark-surface/90 border border-dark-border/80 px-2 py-1 rounded-lg text-right">
+          <div className="text-[8px] uppercase tracking-wider text-slate-400 font-medium">Капитал</div>
           <div className="text-xs font-mono font-bold text-emerald-400">
             {formatMoney(portfolio?.totalEquity || user?.balance || 10000)}
           </div>
@@ -117,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdmin }) => {
           title="Панель администратора / Market Events"
           className="p-1.5 rounded-lg bg-dark-surface hover:bg-dark-border border border-dark-border text-slate-300 hover:text-white transition-colors"
         >
-          <Shield className="w-4 h-4 text-emerald-400" />
+          <Shield className="w-3.5 h-3.5 text-emerald-400" />
         </button>
 
         {isDevMock && (
@@ -126,16 +144,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAdmin }) => {
             title="Переключить тестового пользователя"
             className="p-1.5 rounded-lg bg-dark-surface hover:bg-dark-border border border-dark-border text-blue-400 hover:text-blue-300 transition-colors"
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-3.5 h-3.5" />
           </button>
         )}
 
         {/* Connection status indicator */}
         <div title={isConnected ? 'WebSocket Online' : 'WebSocket Reconnecting'}>
           {isConnected ? (
-            <Wifi className="w-3.5 h-3.5 text-emerald-500" />
+            <Wifi className="w-3 h-3 text-emerald-500" />
           ) : (
-            <WifiOff className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+            <WifiOff className="w-3 h-3 text-rose-500 animate-pulse" />
           )}
         </div>
       </div>

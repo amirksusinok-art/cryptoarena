@@ -9,15 +9,15 @@ export const marketRouter = Router();
 marketRouter.get('/tickers', (req: Request, res: Response) => {
   const tickers = priceEngine.getAllTickers();
 
-  // Top Gainers and Top Losers
-  const sorted = [...tickers].sort((a, b) => b.change24hPercent - a.change24hPercent);
-  const topGainers = sorted.slice(0, 3);
-  const topLosers = [...sorted].reverse().slice(0, 3);
+  // Top Gainers: strictly positive change, sorted descending
+  const gainers = [...tickers].filter(t => t.change24hPercent > 0).sort((a, b) => b.change24hPercent - a.change24hPercent);
+  // Top Losers: strictly negative change, sorted ascending (most negative first)
+  const losers = [...tickers].filter(t => t.change24hPercent < 0).sort((a, b) => a.change24hPercent - b.change24hPercent);
 
   res.json({
     tickers,
-    topGainers,
-    topLosers
+    topGainers: gainers.slice(0, 3),
+    topLosers: losers.slice(0, 3)
   });
 });
 

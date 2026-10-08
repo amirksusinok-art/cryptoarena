@@ -28,6 +28,30 @@ export const NewsTab: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const [filter, setFilter] = useState<'all' | 'events' | 'market'>('all');
+
+  const filteredNews = news.filter(item => {
+    if (filter === 'events') return item.type === 'PUMP' || item.type === 'DUMP' || item.type === 'PANIC' || item.type === 'BLACK_MONDAY';
+    if (filter === 'market') return item.type === 'INFO' || item.type === 'VOLATILITY';
+    return true;
+  });
+
+  const getImpactBadgeClass = (importance: string) => {
+    if (importance.includes('🟢') || importance.includes('Институционал') || importance.includes('Рекорд') || importance.includes('Отток')) {
+      return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+    }
+    if (importance.includes('🔴') || importance === 'CRITICAL' || importance.includes('Ликвидация') || importance.includes('Дамп')) {
+      return 'bg-rose-500/15 text-rose-400 border border-rose-500/30';
+    }
+    if (importance.includes('🟡') || importance.includes('⚡') || importance === 'HIGH' || importance.includes('Волатильность')) {
+      return 'bg-amber-500/15 text-amber-400 border border-amber-500/30';
+    }
+    if (importance.includes('🔥') || importance.includes('Ончейн') || importance.includes('PUMP')) {
+      return 'bg-purple-500/15 text-purple-300 border border-purple-500/30';
+    }
+    return 'bg-dark-surface text-slate-300 border border-dark-border';
+  };
+
   return (
     <div className="p-3.5 space-y-4 pb-20 select-none">
       {/* Active Major Events Banner (Pump, Dump, Panic, Black Monday) */}
@@ -89,22 +113,49 @@ export const NewsTab: React.FC = () => {
         </div>
         <button
           onClick={fetchNews}
-          className="text-slate-400 hover:text-white p-1 rounded-lg"
+          className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors"
           title="Обновить"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
+      {/* Category Filter Chips */}
+      <div className="flex space-x-1.5 text-xs font-semibold">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-3 py-1 rounded-lg transition-colors ${
+            filter === 'all' ? 'bg-emerald-500 text-black' : 'bg-dark-card border border-dark-border text-slate-400 hover:text-white'
+          }`}
+        >
+          Все
+        </button>
+        <button
+          onClick={() => setFilter('events')}
+          className={`px-3 py-1 rounded-lg transition-colors ${
+            filter === 'events' ? 'bg-emerald-500 text-black' : 'bg-dark-card border border-dark-border text-slate-400 hover:text-white'
+          }`}
+        >
+          Импульсы & Паника
+        </button>
+        <button
+          onClick={() => setFilter('market')}
+          className={`px-3 py-1 rounded-lg transition-colors ${
+            filter === 'market' ? 'bg-emerald-500 text-black' : 'bg-dark-card border border-dark-border text-slate-400 hover:text-white'
+          }`}
+        >
+          Фоновые новости
+        </button>
+      </div>
+
       {/* News List */}
       <div className="space-y-2.5">
-        {news.length === 0 ? (
+        {filteredNews.length === 0 ? (
           <div className="bg-dark-card border border-dark-border rounded-xl p-8 text-center text-xs text-slate-500">
-            {loading ? 'Загрузка новостей...' : 'Нет новостей'}
+            {loading ? 'Загрузка новостей...' : 'Нет новостей по выбранному фильтру'}
           </div>
         ) : (
-          news.map((item) => {
-            const isHigh = item.importance === 'HIGH' || item.importance === 'CRITICAL';
+          filteredNews.map((item) => {
             const isPump = item.type === 'PUMP';
             const isDump = item.type === 'DUMP';
             const isPanic = item.type === 'PANIC' || item.type === 'BLACK_MONDAY';
@@ -115,20 +166,12 @@ export const NewsTab: React.FC = () => {
                 className="bg-dark-card border border-dark-border hover:border-slate-700 rounded-xl p-3 space-y-1.5 transition-colors"
               >
                 <div className="flex items-center justify-between text-[11px]">
-                  <div className="flex items-center space-x-1.5">
+                  <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                     {isPump && <ArrowUpRight className="w-4 h-4 text-emerald-400" />}
                     {isDump && <ArrowDownRight className="w-4 h-4 text-rose-400" />}
                     {isPanic && <AlertOctagon className="w-4 h-4 text-amber-400" />}
                     <span className="font-bold text-xs text-white">{item.symbol}</span>
-                    <span
-                      className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
-                        item.importance === 'CRITICAL'
-                          ? 'bg-rose-500/20 text-rose-400'
-                          : isHigh
-                          ? 'bg-amber-500/20 text-amber-400'
-                          : 'bg-dark-surface text-slate-400'
-                      }`}
-                    >
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getImpactBadgeClass(item.importance)}`}>
                       {item.importance}
                     </span>
                   </div>
