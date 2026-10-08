@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - BOT_MODE=polling
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - ADMIN_SECRET_KEY=${ADMIN_SECRET_KEY:-admin_secret_super_key_2026}
+      - DATABASE_URL=postgres://cryptoarena:cryptoarena_pass@postgres:5432/cryptoarena
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cryptoarena
+      POSTGRES_PASSWORD: cryptoarena_pass
+      POSTGRES_DB: cryptoarena
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:

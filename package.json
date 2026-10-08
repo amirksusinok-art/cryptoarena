@@ -1,0 +1,45 @@
+{
+  "name": "cryptoarena",
+  "version": "1.0.0",
+  "description": "CryptoArena — Virtual Cryptocurrency Exchange Simulator Telegram Mini App",
+  "main": "server/index.ts",
+  "scripts": {
+    "install:all": "npm install && cd client && npm install",
+    "build:client": "cd client && npm run build",
+    "build:server": "tsc -p server/tsconfig.json",
+    "build": "npm run build:client && npm run build:server",
+    "start": "node dist/server/index.js",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\""
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.3",
+    "telegraf": "^4.16.3",
+    "ws": "^8.18.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.4",
+    "@types/pg": "^8.11.11",
+    "@types/ws": "^8.5.14",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  },
+  "keywords": [
+    "telegram-mini-app",
+    "crypto",
+    "simulator",
+    "trading",
+    "exchange",
+    "render"
+  ],
+  "author": "",
+  "license": "MIT"
+}
